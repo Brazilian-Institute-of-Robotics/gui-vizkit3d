@@ -116,7 +116,9 @@ namespace vizkit3d
          * manipulator requires special setup. It is used internally by
          * setVisualizationFrame and setTrackedNode
          */
-        NODE_TRACKER_MANIPULATOR
+        NODE_TRACKER_MANIPULATOR,
+        /** No manipulator */
+        NO_MANIPULATOR
     };
 
     // configuration class
@@ -185,7 +187,7 @@ namespace vizkit3d
             static osg::Vec3d const DEFAULT_UP;
 
             friend class VizPluginBase;
-            Vizkit3DWidget(QWidget* parent = 0,const QString &world_name = "world_osg");
+            Vizkit3DWidget(QWidget* parent = 0,const QString &world_name = "world_osg",bool auto_update = true);
 
             /** Defined to avoid unnecessary dependencies in the headers
              *
@@ -217,6 +219,14 @@ namespace vizkit3d
              * the widget.  Use only if you know what you are doing
              */
             void setCameraManipulator(osg::ref_ptr<osgGA::CameraManipulator> manipulator, bool resetToDefaultHome = false);
+
+            enum GrabbingMode {
+                READ_PIXELS,
+                SINGLE_PBO,
+                DOUBLE_PBO,
+                TRIPLE_PBO
+            };
+
 
         public slots:
             void addPlugin(QObject* plugin, QObject* parent = NULL);
@@ -282,11 +292,12 @@ namespace vizkit3d
 
             bool isAxesLabels() const;
             void setAxesLabels(bool value);
+
             /** Enables grabbing
              *
              * Must be called before grab()
              */
-            void enableGrabbing();
+            void enableGrabbing(GrabbingMode mode = SINGLE_PBO);
             /** Disables grabbing
              *
              * You will have to call enableGrabbing() again before you can use
@@ -413,6 +424,9 @@ namespace vizkit3d
 
             CAMERA_MANIPULATORS last_manipulator;
             CAMERA_MANIPULATORS current_manipulator;
+
+            osg::ref_ptr<osg::Camera::DrawCallback> captureCallback;
+            osg::ref_ptr<osg::Referenced> captureOperation;
     };
 }
 #endif
