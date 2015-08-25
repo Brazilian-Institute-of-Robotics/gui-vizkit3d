@@ -145,6 +145,7 @@ namespace
         { "Orbit", ORBIT_MANIPULATOR, true },
         { "Terrain", TERRAIN_MANIPULATOR, true },
         { "Trackball", TRACKBALL_MANIPULATOR, true },
+        { "None", NO_MANIPULATOR, true },
         { 0, FIRST_PERSON_MANIPULATOR } // only the empty string is used as guard
     };
 }
@@ -504,6 +505,9 @@ void Vizkit3DWidget::deregisterDataHandler(VizPluginBase* viz)
     if (it == plugins.end())
         throw std::runtime_error("trying to deregister a plugin that is not registered on this widget");
 
+    if (viz == env_plugin)
+        clearEnvironmentPlugin();
+
     disableDataHandler(viz);
     plugins.erase(it);
 }
@@ -671,19 +675,34 @@ void Vizkit3DWidget::changeCameraView(const osg::Vec3* lookAtPos, const osg::Vec
     assert(view);
 
     osgGA::CameraManipulator* manipulator = dynamic_cast<osgGA::CameraManipulator*>(view->getCameraManipulator());
-    osg::Vec3d eye, center, up;
-    manipulator->getHomePosition(eye, center, up);
+    if (!manipulator)
+    {
+        osg::Vec3d eye, center, up;
+        view->getCamera()->getViewMatrixAsLookAt(eye, center, up);
+        if (lookAtPos)
+            center = *lookAtPos;
+        if (eyePos)
+            eye = *eyePos;
+        if (upVector)
+            up = *upVector;
+        view->getCamera()->setViewMatrixAsLookAt(eye, center, up);
+    }
+    else
+    {
+        osg::Vec3d eye, center, up;
+        manipulator->getHomePosition(eye, center, up);
 
-    if (lookAtPos)
-        center = *lookAtPos;
-    if (eyePos)
-        eye = *eyePos;
-    if (upVector)
-        up = *upVector;
+        if (lookAtPos)
+            center = *lookAtPos;
+        if (eyePos)
+            eye = *eyePos;
+        if (upVector)
+            up = *upVector;
 
-    //set new values
-    manipulator->setHomePosition(eye, center, up);
-    view->home();
+        //set new values
+        manipulator->setHomePosition(eye, center, up);
+        view->home();
+    }
 }
 
 QColor Vizkit3DWidget::getBackgroundColor()const
@@ -1128,7 +1147,9 @@ void Vizkit3DWidget::setCameraManipulator(osg::ref_ptr<osgGA::CameraManipulator>
     if (!resetToDefaultHome && current)
         current->getHomePosition(eye, center, up);
 
-    manipulator->setHomePosition(eye, center, up);
+    if (manipulator)
+        manipulator->setHomePosition(eye, center, up);
+
     view->setCameraManipulator(manipulator);
     view->home();
 }
@@ -1163,6 +1184,9 @@ void Vizkit3DWidget::setCameraManipulator(CAMERA_MANIPULATORS manipulatorType, b
             break;
         case NODE_TRACKER_MANIPULATOR:
             throw std::invalid_argument("cannot set the manipulaor to NODE_TRACKER_MANIPULATOR using setCameraManipulator, use setTrackedNode instead");
+        case NO_MANIPULATOR:
+            // NULL
+            break;
         default:
             throw std::invalid_argument("invalid camera manipulator type provided");
     };
